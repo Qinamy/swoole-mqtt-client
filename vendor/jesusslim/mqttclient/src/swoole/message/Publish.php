@@ -109,7 +109,6 @@ class Publish extends BaseMessage
      */
     public function getPayload()
     {
-        echo '!!getPayload'.PHP_EOL;
         return $this->message;
     }
 

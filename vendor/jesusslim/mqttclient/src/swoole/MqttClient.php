@@ -123,6 +123,11 @@ class MqttClient
         $this->client_id = $client_id;
     }
 
+    public function getMsgId()
+    {
+        return $this->msg_id;
+    }
+    
     /**
      * @return int
      */
@@ -334,7 +339,7 @@ class MqttClient
      * @param bool $clean
      */
     public function connect($clean = true){
-        echo '@@connect'.PHP_EOL;
+//        echo '@@connect'.PHP_EOL;
         if ($this->socket && $this->socket->isConnected()) return;
         $this->clean = $clean;
         $this->socket = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
@@ -629,17 +634,31 @@ class MqttClient
      */
     public function subscribe()
     {
+        echo PHP_EOL.PHP_EOL.'@@subscribe'.PHP_EOL;
         $this->logger->log(MqttLogInterface::DEBUG,'Subscribe');
         if (count($this->topics) == 0) return false;
         $id = $this->msg_id->next();
         $subscribe = Message::produce(MessageType::SUBSCRIBE,$this);
         $subscribe->setMessageId($id);
-        echo 'tata'.PHP_EOL;
+
+        echo 'message_id'.PHP_EOL;
+        echo $id.PHP_EOL;
+
+        echo 'package'.PHP_EOL;
+        echo $subscribe->encode().PHP_EOL;
+        echo strlen($subscribe->encode()).PHP_EOL;
+
+        echo 'payload'.PHP_EOL;
+        echo $subscribe->getPayload().PHP_EOL;
+        echo strlen($subscribe->getPayload()).PHP_EOL;
+
+
+       
+
         $this->write($subscribe);
-        echo 'papa'.PHP_EOL;
 //        var_dump($subscribe);
         $this->store->set(MessageType::SUBACK,'requesting',$id,array_keys($this->getTopics()));
-//        $this->trigger(ClientTriggers::SUBSCRIBE,$subscribe);
+        $this->trigger(ClientTriggers::SUBSCRIBE,$subscribe);
 //        var_dump($subscribe->getPayload());
         return $id;
     }
@@ -653,7 +672,7 @@ class MqttClient
      * @return int
      */
     public function publish($topic,$message,$qos = Qos::MOST_ONE_TIME,$retain = 0,$dup = 0,$msg_id = 0){
-        echo '@publish'.PHP_EOL;
+//        echo '@publish'.PHP_EOL;
         /* @var Publish $publish */
         $publish = Message::produce(MessageType::PUBLISH,$this);
         $publish->setTopic($topic);
@@ -665,6 +684,10 @@ class MqttClient
             $msg_id = $this->msg_id->next();
         }
         $publish->setMessageId($msg_id);
+        echo 'package'.PHP_EOL;
+        echo $publish->encode().PHP_EOL;
+        echo strlen($publish->encode()).PHP_EOL;
+
         $this->write($publish);
         $this->logger->log(MqttLogInterface::DEBUG,'Publish '.$msg_id);
         if ($qos == Qos::LEAST_ONE_TIME){

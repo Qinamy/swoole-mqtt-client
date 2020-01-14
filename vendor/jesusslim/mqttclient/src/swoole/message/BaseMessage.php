@@ -100,9 +100,7 @@ class BaseMessage implements MessageInterface
     public function encode()
     {
         $payload = $this->getPayload();
-        echo 'payload:'.PHP_EOL.$payload.PHP_EOL;
         $this->setPayloadLength(strlen($payload));
-        echo 'payloadlength'.strlen($payload).PHP_EOL;
         return $this->encodeHeader().$payload;
     }
 
@@ -167,6 +165,11 @@ class BaseMessage implements MessageInterface
     public function encodeHeader(){
         $cmd = $this->getType() << 4;
         $cmd |= ($this->reserved_flags & 0x0F);
+//        echo 'reserved_flag'.PHP_EOL;
+//        echo $this->reserved_flags.PHP_EOL;
+
+//        echo 'cmd'.PHP_EOL;
+//        echo $cmd.PHP_EOL;
         $header = chr($cmd) . Util::packRemainLength($this->remain_length);
         $header .= $this->encodeVariableHeader();
         return $header;
