@@ -23,10 +23,17 @@ class Subscribe extends BaseMessage
     {
         $buffer = "";
         $topics = $this->getClient()->getTopics();
+        echo '@@getPayload'.PHP_EOL;
+        echo json_encode($topics).PHP_EOL;
         /* @var \mqttclient\src\subscribe\Topic $topic */
         foreach ($topics as $topic_name => $topic){
-            $buffer .= Util::packLenStr($topic->getTopic());
-            $buffer .= chr($topic->getQos());
+            echo $topic->getTopic().PHP_EOL;
+//            $buffer .= Util::packLenStr($topic->getTopic());
+//            echo Util::packLenStr($topic->getTopic()).PHP_EOL;
+            $buffer .= $topic->getTopic();
+//            $buffer .= chr($topic->getQos());
+//            echo $topic->getQos().PHP_EOL;
+//            echo chr($topic->getQos()).PHP_EOL;
         }
         return $buffer;
     }

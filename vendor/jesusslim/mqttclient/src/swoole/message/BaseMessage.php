@@ -100,7 +100,9 @@ class BaseMessage implements MessageInterface
     public function encode()
     {
         $payload = $this->getPayload();
+        echo 'payload:'.PHP_EOL.$payload.PHP_EOL;
         $this->setPayloadLength(strlen($payload));
+        echo 'payloadlength'.strlen($payload).PHP_EOL;
         return $this->encodeHeader().$payload;
     }
 

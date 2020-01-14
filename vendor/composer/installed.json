@@ -1,0 +1,85 @@
+[
+    {
+        "name": "jesusslim/mqttclient",
+        "version": "1.32",
+        "version_normalized": "1.32.0.0",
+        "source": {
+            "type": "git",
+            "url": "https://github.com/jesusslim/mqttclient.git",
+            "reference": "ad6bb123fac6d802383ea4f4a4b6537287f85ca4"
+        },
+        "dist": {
+            "type": "zip",
+            "url": "https://api.github.com/repos/jesusslim/mqttclient/zipball/ad6bb123fac6d802383ea4f4a4b6537287f85ca4",
+            "reference": "ad6bb123fac6d802383ea4f4a4b6537287f85ca4",
+            "shasum": ""
+        },
+        "require": {
+            "jesusslim/pinject": "dev-master",
+            "php": ">=5.6.0"
+        },
+        "time": "2018-09-29T09:54:36+00:00",
+        "type": "library",
+        "installation-source": "dist",
+        "autoload": {
+            "psr-4": {
+                "mqttclient\\src\\": "src/"
+            }
+        },
+        "notification-url": "https://packagist.org/downloads/",
+        "license": [
+            "MIT"
+        ],
+        "authors": [
+            {
+                "name": "jesusslim",
+                "email": "755808379@qq.com"
+            }
+        ],
+        "description": "php mqtt client",
+        "keywords": [
+            "mqtt"
+        ]
+    },
+    {
+        "name": "jesusslim/pinject",
+        "version": "dev-master",
+        "version_normalized": "9999999-dev",
+        "source": {
+            "type": "git",
+            "url": "https://github.com/jesusslim/pinject.git",
+            "reference": "035cd8b79948ac107263cee5f0dc0242792e55e5"
+        },
+        "dist": {
+            "type": "zip",
+            "url": "https://api.github.com/repos/jesusslim/pinject/zipball/035cd8b79948ac107263cee5f0dc0242792e55e5",
+            "reference": "035cd8b79948ac107263cee5f0dc0242792e55e5",
+            "shasum": ""
+        },
+        "require": {
+            "php": ">=5.6.0"
+        },
+        "time": "2017-05-26T06:47:07+00:00",
+        "type": "library",
+        "installation-source": "source",
+        "autoload": {
+            "psr-4": {
+                "Inject\\": "Inject/"
+            }
+        },
+        "notification-url": "https://packagist.org/downloads/",
+        "license": [
+            "MIT"
+        ],
+        "authors": [
+            {
+                "name": "jesusslim",
+                "email": "755808379@qq.com"
+            }
+        ],
+        "description": "inject in php",
+        "keywords": [
+            "inject"
+        ]
+    }
+]

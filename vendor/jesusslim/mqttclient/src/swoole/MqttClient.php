@@ -14,6 +14,7 @@ use mqttclient\src\consts\ClientTriggers;
 use mqttclient\src\consts\MessageType;
 use mqttclient\src\consts\MqttVersion;
 use mqttclient\src\consts\Qos;
+use mqttclient\src\exception\MqttClientException;
 use mqttclient\src\swoole\message\MessageInterface;
 use mqttclient\src\swoole\message\Publish;
 use mqttclient\src\swoole\message\Suback;
@@ -333,6 +334,8 @@ class MqttClient
      * @param bool $clean
      */
     public function connect($clean = true){
+        echo '@@connect'.PHP_EOL;
+        if ($this->socket && $this->socket->isConnected()) return;
         $this->clean = $clean;
         $this->socket = new \swoole_client(SWOOLE_SOCK_TCP, SWOOLE_SOCK_ASYNC);
         $this->socket->set([
@@ -343,9 +346,10 @@ class MqttClient
 
         $this->socket->on('connect',function ($cli){
             $this->reconnect_count = 0;
-            /* @var \mqttclient\src\message\Connect */
+            /* @var \mqttclient\src\swoole\message\Connect */
             $msg = Message::produce(MessageType::CONNECT,$this);
             $this->write($msg);
+            $this->logger->log(MqttLogInterface::DEBUG,'Connect');
             $this->keep_alive_timer_id = swoole_timer_tick($this->keep_alive * 500, [$this, 'keepAlive']);
             $this->trigger(ClientTriggers::SOCKET_CONNECT,null);
         });
@@ -356,8 +360,10 @@ class MqttClient
             switch ($message->getType()){
                 case MessageType::CONNACK:
                     $this->logger->log(MqttLogInterface::DEBUG,'Receive CONNACK.');
-                    $this->subscribe();
+//                    $this->subscribe();
+//                    echo '@@subscribe'.PHP_EOL;
                     $this->trigger(ClientTriggers::RECEIVE_CONNACK,$message);
+//                    echo '@@trigger'.PHP_EOL;
                     break;
                 case MessageType::PINGRESP:
                     $this->logger->log(MqttLogInterface::DEBUG,'Receive PINGRESP.');
@@ -395,6 +401,7 @@ class MqttClient
                     $qos = $message->getQos();
                     $this->logger->log(MqttLogInterface::DEBUG,'Receive PUBLISH. QOS:'.$qos);
                     if ($qos == Qos::MOST_ONE_TIME){
+                        echo 'most one time'.PHP_EOL;
                         $this->handleReceive($message);
                     }elseif ($qos == Qos::LEAST_ONE_TIME){
                         $this->handleReceive($message);
@@ -500,6 +507,7 @@ class MqttClient
             $this->trigger(ClientTriggers::SOCKET_CLOSE,null);
         });
 
+        // 会不停的重复连接
         swoole_async_dns_lookup($this->host, function($host, $ip) use($port){
             $this->socket->connect($ip, $port);
         });
@@ -509,8 +517,11 @@ class MqttClient
      * write
      * @param MessageInterface $msg
      * @return bool
+     * @throws MqttClientException
      */
     protected function write(MessageInterface $msg){
+//        var_dump($this->socket);
+        if (is_null($this->socket)) throw new MqttClientException('socket is null');
         return $this->socket->send($msg->encode());
     }
 
@@ -518,12 +529,14 @@ class MqttClient
      * read
      * @param $data
      * @return bool|MessageInterface
+     * @throws MqttClientException
      */
     protected function read($data){
         $type = Util::decodeCmd(ord($data{0}));
         $index = 1;
         $remaining_length = Util::decodeRemainLength($data,$index);
         $msg = Message::produce($type,$this);
+        if ($msg === false) throw new MqttClientException("read message produce fail $type");
         $msg->decode($data,$remaining_length);
         return $msg;
     }
@@ -563,8 +576,10 @@ class MqttClient
     {
         $this->logger->log(MqttLogInterface::DEBUG,'Disconnect');
         $disconnect = Message::produce(MessageType::DISCONNECT,$this);
-        $this->write($disconnect);
-        if ($this->socket->isConnected()) $this->socket->close();
+        if ($this->socket && $this->socket->isConnected()){
+            $this->write($disconnect);
+            $this->socket->close();
+        }
         $this->trigger(ClientTriggers::DISCONNECT,$disconnect);
         return true;
     }
@@ -588,22 +603,7 @@ class MqttClient
         $this->connect($clean_session);
     }
 
-    /**
-     * subscribe
-     * @return int
-     */
-    public function subscribe()
-    {
-        $this->logger->log(MqttLogInterface::DEBUG,'Subscribe');
-        if (count($this->topics) == 0) return false;
-        $id = $this->msg_id->next();
-        $subscribe = Message::produce(MessageType::SUBSCRIBE,$this);
-        $subscribe->setMessageId($id);
-        $this->write($subscribe);
-        $this->store->set(MessageType::SUBACK,'requesting',$id,array_keys($this->getTopics()));
-        $this->trigger(ClientTriggers::SUBSCRIBE,$subscribe);
-        return $id;
-    }
+    
 
     /**
      * unsubscribe
@@ -624,6 +624,26 @@ class MqttClient
     }
 
     /**
+     * subscribe
+     * @return int
+     */
+    public function subscribe()
+    {
+        $this->logger->log(MqttLogInterface::DEBUG,'Subscribe');
+        if (count($this->topics) == 0) return false;
+        $id = $this->msg_id->next();
+        $subscribe = Message::produce(MessageType::SUBSCRIBE,$this);
+        $subscribe->setMessageId($id);
+        echo 'tata'.PHP_EOL;
+        $this->write($subscribe);
+        echo 'papa'.PHP_EOL;
+//        var_dump($subscribe);
+        $this->store->set(MessageType::SUBACK,'requesting',$id,array_keys($this->getTopics()));
+//        $this->trigger(ClientTriggers::SUBSCRIBE,$subscribe);
+//        var_dump($subscribe->getPayload());
+        return $id;
+    }
+    /**
      * @param $topic
      * @param $message
      * @param int $qos
@@ -633,6 +653,7 @@ class MqttClient
      * @return int
      */
     public function publish($topic,$message,$qos = Qos::MOST_ONE_TIME,$retain = 0,$dup = 0,$msg_id = 0){
+        echo '@publish'.PHP_EOL;
         /* @var Publish $publish */
         $publish = Message::produce(MessageType::PUBLISH,$this);
         $publish->setTopic($topic);
@@ -664,6 +685,26 @@ class MqttClient
         return $msg_id;
     }
 
+//    public function subscribe($topic,$message,$qos = Qos::MOST_ONE_TIME,$retain = 0,$dup = 0)
+//    {
+//        $this->logger->log(MqttLogInterface::DEBUG,'Subscribe');
+//        if (count($this->topics) == 0) return false;
+//        echo '@@sub'.PHP_EOL;
+//        $id = $this->msg_id->next();
+//        $subscribe = Message::produce(MessageType::SUBSCRIBE,$this);
+//        $publish->setTopic($topic);
+//        $publish->setMessage($message);
+//        $publish->setQos($qos);
+//        $publish->setRetain($retain);
+//        $publish->setDup($dup);
+//        $subscribe->setMessageId($id);
+//        $this->write($subscribe);
+//        $this->store->set(MessageType::SUBACK,'requesting',$id,array_keys($this->getTopics()));
+//        echo 'endsub'.PHP_EOL;
+//        $this->trigger(ClientTriggers::SUBSCRIBE,$subscribe);
+//        return $id;
+//    }
+
     /**
      * 重发设置
      * @param int $store_msg_type msg type
@@ -692,8 +733,12 @@ class MqttClient
      * @param int|string $store_sub_key msgid
      */
     public function unregisterResend($store_msg_type,$store_key,$store_sub_key){
+        echo 'unregister'.PHP_EOL;
         $timer_id = $this->getStore()->get(self::TIMER_TAG.$store_msg_type,$store_key,$store_sub_key);
-        if ($timer_id > 0) swoole_timer_clear($timer_id);
+        if ($timer_id > 0) {
+            swoole_timer_clear($timer_id);
+        }
+
         $this->getStore()->delete(self::TIMER_TAG.$store_msg_type,$store_key,$store_sub_key);
     }
 
@@ -711,7 +756,7 @@ class MqttClient
                             str_replace("$",'\$',
                                 $key))))."$/",$topic_name) ){
                 /* @var \mqttclient\src\subscribe\Topic $topic */
-                $container->call($topic->getHandler(),['msg' => $publish->getMessage(),'msg_id' => $publish->getMessageId()]);
+                $container->call($topic->getHandler(),['msg' => $publish->getMessage(),'msg_id' => $publish->getMessageId(),'topic' => $publish->getTopic()]);
             }
         }
     }
@@ -738,9 +783,10 @@ class MqttClient
      * set a trigger
      * @param $trigger
      * @param \Closure $call_back
+     * @param string $cb_id callback_id/key
      */
-    public function on($trigger,\Closure $call_back){
-        $this->call_backs[$trigger] = $call_back;
+    public function on($trigger,\Closure $call_back,$cb_id = 'default'){
+        $this->call_backs[$trigger][$cb_id] = $call_back;
         return $this;
     }
 
@@ -752,7 +798,16 @@ class MqttClient
     protected function trigger($trigger,MessageInterface $msg = null){
         if (isset($this->call_backs[$trigger])){
             $container = $this->produceContainer();
-            $container->call($this->call_backs[$trigger],['msg' => $msg]);
+            foreach ($this->call_backs[$trigger] as $cb_id => $call_back){
+                $container->call($call_back,compact('msg','container'));
+            }
         }
+    }
+
+    /**
+     * @return \swoole_client
+     */
+    public function getSocket(){
+        return $this->socket;
     }
 }
